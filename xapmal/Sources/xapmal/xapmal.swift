@@ -22,7 +22,7 @@ public struct xm {
             assert(self.mlcLayer != nil, "ERROR: Layer is not defined")
             
             // Create a training graph and configure it with the graph.
-            let trainingGraph = xm.createTrainingGraph(lossLayer: nil, optimizer: nil)
+            let trainingGraph = MLCTrainingGraph(graphObjects: [xm.graph], lossLayer: nil, optimizer: nil)
             trainingGraph.compile(device: device)
             
             let (inputs, datas) = self.getAllInputsAndData()
@@ -75,11 +75,6 @@ public struct xm {
 //        let tensorDataLength = data.count
 //        return MLCTensorData(immutableBytesNoCopy: tensorDataBytes!, length: tensorDataLength)
 //    }
-    
-    public static func createTrainingGraph(lossLayer: MLCLayer?, optimizer: MLCOptimizer?) -> MLCTrainingGraph {
-        // TODO: Remove this method, seems useless
-        return MLCTrainingGraph(graphObjects: [self.graph], lossLayer: lossLayer, optimizer: optimizer)
-    }
     
     public static func getFloatArray(_ mlcTensor: MLCTensor) -> [Float]? {
         guard let data = mlcTensor.data else { return nil }
