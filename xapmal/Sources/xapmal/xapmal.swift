@@ -34,11 +34,9 @@ public struct xm {
             trainingGraph.execute(inputsData: datas, lossLabelsData: nil, lossLabelWeightsData: nil, batchSize: 0, completionHandler: { (tensor, error, time) in
                 guard let mlcTensor = tensor else { print(error!); return }
                 
-                let xmTensor = xm.Tensor(mlcTensorWithData: mlcTensor)
-                
-                self.mlcTensorData = xmTensor.mlcTensorData
-                
-                self.value = xmTensor.value
+                let value = xm.getFloatArray(mlcTensor)!
+                self.value = value
+                self.mlcTensorData = MLCTensorData(immutableBytesNoCopy: UnsafeRawPointer(self.value!), length: self.value!.count * MemoryLayout<Float>.size)
             })
         }
         
@@ -49,7 +47,7 @@ public struct xm {
             let lenght = tensors.count - 1
             for i in 0...lenght {
                 inputs["input_\(i)"] = tensors[i]
-                datas["input_\(i)"] = xm.Tensor(mlcTensorWithData: tensors[i]).mlcTensorData
+                datas["input_\(i)"] = xm.backlink[tensors[i]]!.mlcTensorData!
             }
             return (inputs, datas)
         }
@@ -69,16 +67,6 @@ public struct xm {
             self.mlcLayer = mlcLayer
             xm.backlink[self.mlcTensor] = self
         }
-        
-        public init(mlcTensorWithData mlcTensor: MLCTensor) {
-            // Probably it is not a good idea, better to construct tensor in it's methods. TODO: remove.
-            let value = xm.getFloatArray(mlcTensor)!
-            self.value = value
-            self.mlcTensorData = MLCTensorData(immutableBytesNoCopy: UnsafeRawPointer(self.value!), length: self.value!.count * MemoryLayout<Float>.size)
-            self.mlcTensor = mlcTensor
-            self.mlcLayer = nil
-            xm.backlink[self.mlcTensor] = self
-        }
     }
     
     // Looks interesting, but not working
@@ -89,6 +77,7 @@ public struct xm {
 //    }
     
     public static func createTrainingGraph(lossLayer: MLCLayer?, optimizer: MLCOptimizer?) -> MLCTrainingGraph {
+        // TODO: Remove this method, seems useless
         return MLCTrainingGraph(graphObjects: [self.graph], lossLayer: lossLayer, optimizer: optimizer)
     }
     
