@@ -2,7 +2,7 @@ import Foundation
 import MLCompute
 
 // Create two single-element tensors with float values.
-let x1: [Float] = [1.0]
+let x1: [Float] = [4.0]
 let x1Tensor = MLCTensor(shape: [1], dataType: .float32)
 let x1Data = MLCTensorData(immutableBytesNoCopy: UnsafeRawPointer(x1), length: x1.count * MemoryLayout<Float>.size)
 let x2: [Float] = [2.0]
@@ -32,5 +32,11 @@ trainingGraph.execute(inputsData: ["input_1": x1Data, "input_2": x2Data], lossLa
         let floatBuffer = pointer.bindMemory(to: Float.self)
         return Array(floatBuffer)
     }
-    print("Result:", floatArray[0])
+    print("Result:", floatArray)
 })
+
+trainingGraph.executeGradient(batchSize: 0)
+
+let x1Grad = trainingGraph.gradientTensor(forInput: x1Tensor)!
+
+x1Grad.data
