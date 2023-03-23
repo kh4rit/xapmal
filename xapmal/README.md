@@ -4,7 +4,7 @@ MLCompute package from Apple seems to be too complicated to use. This package ho
 
 ``` swift
 
-// xapmal allow you to generate both MLCTensor and MLCTensor data in one structure xm.Tensor.
+// xapmal allow you to generate both MLCTensor and MLCTensorData in one structure xm.Tensor.
 let x1 = xm.Tensor([5.0])
 let x2 = xm.Tensor([2.0])
 

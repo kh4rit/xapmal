@@ -1,6 +1,6 @@
 import MLCompute
 
-@available(macOS 11.0, *)
+@available(macOS 12.0, *)
 public struct xm {
     public private(set) var text = "Hello, World!"
 
@@ -54,8 +54,11 @@ public struct xm {
         
         public init(_ value: [Float]) {
             self.value = value
-            self.mlcTensorData = MLCTensorData(immutableBytesNoCopy: UnsafeRawPointer(self.value!), length: self.value!.count * MemoryLayout<Float>.size)
-            self.mlcTensor = MLCTensor(shape: [value.count], data: self.mlcTensorData!, dataType: .float32)
+            let elemType = xm.elementType(of: value)
+            let (mlcType, memorySize) = xm.mlcDataType(of: elemType)
+            let numOfElem = xm.countElements(of: value)
+            self.mlcTensorData = MLCTensorData(immutableBytesNoCopy: UnsafeRawPointer(self.value!), length: numOfElem * memorySize)
+            self.mlcTensor = MLCTensor(shape: shape(of: value), data: self.mlcTensorData!, dataType: mlcType)
             self.mlcLayer = nil
             xm.backlink[self.mlcTensor] = self
         }
@@ -87,10 +90,65 @@ public struct xm {
         return floatArray
     }
     
+    // beautiful fuction from GPT-4 to calculate a shape of array.
+    static func shape(of array: Any) -> [Int] {
+        if let nestedArray = array as? [Any] {
+            return [nestedArray.count] + shape(of: nestedArray.first ?? [])
+        } else {
+            return []
+        }
+    }
+    
+    static func countElements(of array: Any) -> Int {
+        if let nestedArray = array as? [Any] {
+            if nestedArray.isEmpty {
+                return 0
+            }
+            let firstElement = nestedArray.first
+            if firstElement is [Any] {
+                return nestedArray.reduce(0) { (sum, element) in
+                    sum + countElements(of: element)
+                }
+            } else {
+                return nestedArray.count
+            }
+        }
+        return 0
+    }
+    
+    static func elementType(of array: Any) -> Any.Type? {
+        if let nestedArray = array as? [Any], !nestedArray.isEmpty {
+            return elementType(of: nestedArray.first ?? [])
+        } else {
+            return type(of: array)
+        }
+    }
+    
+    static func mlcDataType(of elementType: Any.Type?) -> (MLCDataType, Int) {
+        guard let type = elementType else { fatalError("Could not define the MLC Data Type for element type \(String(describing: elementType))") }
+        switch type {
+        case is Int8.Type:
+            return (.int8, size: MemoryLayout<Float>.size)
+        case is Int32.Type:
+            return (.int32, size: MemoryLayout<Int32>.size)
+        // Int is 64 bit only in 64 bit systems. All modern are 64, so we assume it is.
+        case is Int.Type, is Int64.Type:
+            return (.int64, size: MemoryLayout<Int64>.size)
+        case is UInt8.Type:
+            return (.uint8, size: MemoryLayout<UInt8>.size)
+        case is Float.Type:
+            return (.float32, size: MemoryLayout<Float>.size)
+        case is Bool.Type:
+            return (.boolean, size: MemoryLayout<Bool>.size)
+        default:
+            fatalError("Could not define the MLC Data Type for element type \(type)")
+        }
+    }
+    
 }
 
 // adding support of operators
-@available(macOS 11.0, *)
+@available(macOS 12.0, *)
 public extension xm.Tensor {
     static func +(lhs: xm.Tensor, rhs: xm.Tensor) -> xm.Tensor {
         let layer = MLCArithmeticLayer(operation: .add)
