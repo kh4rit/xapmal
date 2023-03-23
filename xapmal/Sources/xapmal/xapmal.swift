@@ -30,13 +30,20 @@ public struct xm {
             // add inputs to the training graph
             trainingGraph.addInputs(inputs, lossLabels: nil)
             trainingGraph.addOutputs(["output": self.mlcTensor])
+            print(inputs)
+            let test1 = inputs["input_0"]!
+            print(xm.getFloatArray(test1)!)
+            let test2 = inputs["input_1"]!
+            print(xm.getFloatArray(test2)!)
             
             trainingGraph.execute(inputsData: datas, lossLabelsData: nil, lossLabelWeightsData: nil, batchSize: 0, completionHandler: { (tensor, error, time) in
                 guard let mlcTensor = tensor else { print(error!); return }
-                
                 let value = xm.getFloatArray(mlcTensor)!
                 self.value = value
-                self.mlcTensorData = MLCTensorData(immutableBytesNoCopy: UnsafeRawPointer(self.value!), length: self.value!.count * MemoryLayout<Float>.size)
+                let elemType = xm.elementType(of: value)
+                let (_, memorySize) = xm.mlcDataType(of: elemType)
+                let (_, numOfElem) = xm.shapeAndCount(of: value)
+                self.mlcTensorData = MLCTensorData(immutableBytesNoCopy: UnsafeRawPointer(self.value!), length: numOfElem * memorySize)
             })
         }
         
@@ -53,12 +60,12 @@ public struct xm {
         }
         
         public init(_ value: [Float]) {
-            self.value = value
             let elemType = xm.elementType(of: value)
+            self.value = value
             let (mlcType, memorySize) = xm.mlcDataType(of: elemType)
-            let numOfElem = xm.countElements(of: value)
+            let (shape, numOfElem) = xm.shapeAndCount(of: value)
             self.mlcTensorData = MLCTensorData(immutableBytesNoCopy: UnsafeRawPointer(self.value!), length: numOfElem * memorySize)
-            self.mlcTensor = MLCTensor(shape: shape(of: value), data: self.mlcTensorData!, dataType: mlcType)
+            self.mlcTensor = MLCTensor(shape: shape, data: self.mlcTensorData!, dataType: mlcType)
             self.mlcLayer = nil
             xm.backlink[self.mlcTensor] = self
         }
@@ -72,13 +79,6 @@ public struct xm {
         }
     }
     
-    // Looks interesting, but not working
-//    public static func dataToMLC(_ data: Data) -> MLCTensorData {
-//        let tensorDataBytes = data.withUnsafeBytes { $0.baseAddress }
-//        let tensorDataLength = data.count
-//        return MLCTensorData(immutableBytesNoCopy: tensorDataBytes!, length: tensorDataLength)
-//    }
-    
     public static func getFloatArray(_ mlcTensor: MLCTensor) -> [Float]? {
         guard let data = mlcTensor.data else { return nil }
         
@@ -90,30 +90,19 @@ public struct xm {
         return floatArray
     }
     
-    // beautiful fuction from GPT-4 to calculate a shape of array.
-    static func shape(of array: Any) -> [Int] {
-        if let nestedArray = array as? [Any] {
-            return [nestedArray.count] + shape(of: nestedArray.first ?? [])
-        } else {
-            return []
-        }
-    }
-    
-    static func countElements(of array: Any) -> Int {
+    // beautiful fuction from GPT-4 to calculate shape and count of array.
+    static func shapeAndCount(of array: Any) -> (shape: [Int], count: Int) {
         if let nestedArray = array as? [Any] {
             if nestedArray.isEmpty {
-                return 0
+                return (shape: [], count: 0)
             }
-            let firstElement = nestedArray.first
-            if firstElement is [Any] {
-                return nestedArray.reduce(0) { (sum, element) in
-                    sum + countElements(of: element)
-                }
-            } else {
-                return nestedArray.count
-            }
+            
+            let firstElementShapeAndCount = shapeAndCount(of: nestedArray.first ?? [])
+            let shape = [nestedArray.count] + firstElementShapeAndCount.shape
+            let count = nestedArray.count * firstElementShapeAndCount.count
+            return (shape: shape, count: count)
         }
-        return 0
+        return (shape: [], count: 1)
     }
     
     static func elementType(of array: Any) -> Any.Type? {
@@ -136,7 +125,7 @@ public struct xm {
             return (.int64, size: MemoryLayout<Int64>.size)
         case is UInt8.Type:
             return (.uint8, size: MemoryLayout<UInt8>.size)
-        case is Float.Type:
+        case is Float.Type, is Double.Type:
             return (.float32, size: MemoryLayout<Float>.size)
         case is Bool.Type:
             return (.boolean, size: MemoryLayout<Bool>.size)

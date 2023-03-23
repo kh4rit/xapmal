@@ -3,11 +3,11 @@ import MLCompute
 
 // Create two single-element tensors with float values.
 let x1: [Float] = [4.0]
-let x1Tensor = MLCTensor(shape: [1], dataType: .float32)
 let x1Data = MLCTensorData(immutableBytesNoCopy: UnsafeRawPointer(x1), length: x1.count * MemoryLayout<Float>.size)
+let x1Tensor = MLCTensor(shape: [1], data: x1Data, dataType: .float32)
 let x2: [Float] = [2.0]
-let x2Tensor = MLCTensor(shape: [1], dataType: .float32)
 let x2Data = MLCTensorData(immutableBytesNoCopy: UnsafeRawPointer(x2), length: x2.count * MemoryLayout<Float>.size)
+let x2Tensor = MLCTensor(shape: [1], data: x2Data, dataType: .float32)
 
 // Create a computation graph that adds the two tensors.
 let graph = MLCGraph()
