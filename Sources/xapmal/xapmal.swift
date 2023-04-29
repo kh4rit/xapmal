@@ -30,11 +30,8 @@ public struct xm {
             // add inputs to the training graph
             trainingGraph.addInputs(inputs, lossLabels: nil)
             trainingGraph.addOutputs(["output": self.mlcTensor])
-            print(inputs)
-            let test1 = inputs["input_0"]!
-            print(xm.getFloatArray(test1)!)
-            let test2 = inputs["input_1"]!
-            print(xm.getFloatArray(test2)!)
+
+            // print(inputs)
             
             trainingGraph.execute(inputsData: datas, lossLabelsData: nil, lossLabelWeightsData: nil, batchSize: 0, completionHandler: { (tensor, error, time) in
                 guard let mlcTensor = tensor else { print(error!); return }
